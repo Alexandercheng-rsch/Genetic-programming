@@ -226,7 +226,7 @@ class Tree:
             else:
                 # Constant node
                 self.value = randint(0, n-1)
-                self.arity = 1
+                self.arity = 0
                 self.depth = depth
         else:
             # Non-terminal node
@@ -281,19 +281,22 @@ class Tree:
 
 
     def size(self):
-        if self.arity == 1:
-            return 1
-        if self.arity == 2:
+        if isinstance(self.value,(int, float)):
+            return 0
+        if self.left and not self.right:
+            l = self.left.size() if isinstance(self.left, Tree) else 1
+            return 1 + l
+        if self.left and self.right:
             l = self.left.size() if isinstance(self.left, Tree) else 1
             r = self.right.size() if isinstance(self.right, Tree) else 1
             return 1 + l + r
-        if self.arity == 4:
+        if self.left and self.right and self.middle1 and self.middle2:
             l = self.left.size() if isinstance(self.left, Tree) else 1
             r = self.right.size() if isinstance(self.right, Tree) else 1
             m1 = self.middle1.size() if isinstance(self.middle1, Tree) else 1
             m2 = self.middle2.size() if isinstance(self.middle2, Tree) else 1
             return 1 + l + r + m1 + m2
-        return 0
+
         
 
 
@@ -310,20 +313,22 @@ class Tree:
             if random.random() < mutation_rate and nodes:
                 node = random.choice(nodes)
 
-                # Check if the node is below the maximum depth
-                if node.depth <= max_depth:
-                    # Save the original state of the node
-                    original_node = deepcopy(node)
-
-                    # Perform the mutation logic here...
-
-                    # Check if the mutated tree exceeds the max size
-                    if self.size() > max_size:
-                        # Revert the mutation if the tree is too large
-                        node = original_node
-                        attempts += 1
-                        continue
-                    break  # Mutation successful, break the loop
+                original_node = deepcopy(node)
+                if  node.left:
+                    node.left.random_tree('grow', 1, n)
+                if  node.right:
+                    node.right.random_tree('grow',1, n)
+                if  node.middle1:
+                    node.middle1.random_tree('grow',1,n)
+                if node.middle2:
+                    node.middle2.random_tree('grow',1,n)
+                # Check if the mutated tree exceeds the max size
+                if self.size() > max_size:
+                    # Revert the mutation if the tree is too large
+                    node = original_node
+                    attempts += 1
+                    continue
+                break  # Mutation successful, break the loop
 
             # If mutation was not successful, or no nodes were found, try mutating child nodes
             if not nodes or attempts >= max_attempts:
@@ -424,10 +429,10 @@ def selection(population, TOURNAMENT_SIZE):
 
     return best_individual
 
-def genetic_program(POP_SIZE, n, m, x, y,time_budget=60, MAX_DEPTH=1, TOURNAMENT_SIZE=3, mutation_rate=0.3, crossover_rate=0.9, elite_fact=0.1):
+def genetic_program(POP_SIZE, n, m, x, y,time_budget=60, MAX_DEPTH=1, TOURNAMENT_SIZE=3, mutation_rate=0.4, crossover_rate=0.9, elite_fact=0.1):
     # Initialize population
     population = spawn_pop(n, POP_SIZE, MAX_DEPTH, m, x, y)
-    max_size = 12
+    max_size = 8
     # Set the start time
     start_time = time.time()
 
@@ -452,7 +457,7 @@ def genetic_program(POP_SIZE, n, m, x, y,time_budget=60, MAX_DEPTH=1, TOURNAMENT
             offspring1.crossover_with(offspring2, crossover_rate)
             offspring1.mutate(mutation_rate, MAX_DEPTH,max_size, n)
 
-            offspring1.fitness = fitness(offspring1, n, m, x, y, penalty=1, rate=0.1)
+            offspring1.fitness = fitness(offspring1, n, m, x, y, penalty=0, rate=0.1)
             offspring.append(offspring1)
 
         # Replace the least fit individuals with the offspring
@@ -461,12 +466,16 @@ def genetic_program(POP_SIZE, n, m, x, y,time_budget=60, MAX_DEPTH=1, TOURNAMENT
         # Print the best individual in each generation
         best_individual = min(population, key=lambda x: x.fitness)
         data.append(best_individual.fitness)
+        print(best_individual.to_s_expression())
+        print(fitness(best_individual,n,m,x,y))
+        print(best_individual.size())
         # Increment the generation counter
         generation += 1
 
     # Return the best individual from the final generation
     
     best_individual = min(population, key=lambda x: x.fitness)
+    print(fitness(best_individual,n,m,x,y))
     return best_individual
 
 
@@ -509,7 +518,7 @@ def fitness(expr, n, m, x, y, penalty=0, rate = 0.01):
 
 def complexity_penalty(tree, penalty_rate=0):
     min_complexity = 7 # Set a minimum desired complexity
-    complexity = tree.size()  # Assuming you have a size method that counts the nodes
+    complexity = tree.size()  
     
     if complexity > min_complexity:
         return (min_complexity - complexity) * penalty_rate  # penalty_rate is a constant defining how harsh the penalty is
@@ -607,8 +616,14 @@ if __name__ == '__main__':
 
 
 
-# data = 'cetdl1772small.dat'
-# x, y = reader(data)
+data = 'cetdl1772small.dat'
+x, y = reader(data)
+m = 999
+n = 13
+genetic_program(100,n,m,x,y,time_budget=200)
+
+
+
 
 # import matplotlib.pyplot as plt
 
